@@ -6,14 +6,13 @@
 #include <string>
 #include <random>
 #include <concepts>
+#include <omp.h>
 
 template <typename T> requires std::is_arithmetic_v<T>
 class Matrix {
 private:
 	size_t _rows, _columns;
 	T** _data;
-
-	static size_t _total_operations;
 
 	friend std::ostream& operator<<(std::ostream& os, const Matrix<T>& other) {
 		for (size_t i = 0; i < other.rows(); i++) {
@@ -74,7 +73,6 @@ public:
 
 	size_t rows() const { return _rows; }
 	size_t columns() const { return _columns; }
-	static size_t total_operations() { return _total_operations; }
 
 	T& operator()(size_t row, size_t column) {
 		return _data[row][column];
@@ -91,11 +89,11 @@ public:
 
 		Matrix<T> matr(_rows, other.columns());
 
-		for (size_t i = 0; i < _rows; i++) {
-			for (size_t j = 0; j < other.columns(); j++) {
-				for (size_t k = 0; k < _columns; k++) { 
+		#pragma omp parallel for
+		for (int i = 0; i < _rows; i++) {
+			for (int j = 0; j < other.columns(); j++) {
+				for (int k = 0; k < _columns; k++) { 
 					matr(i, j) += _data[i][k] * other(k, j);
-					_total_operations += 2;
 				}
 			}
 		}
@@ -106,9 +104,6 @@ public:
 };
 
 template <typename T> requires std::is_arithmetic_v<T>
-size_t Matrix<T>::_total_operations = 0;
-
-template <typename T> requires std::is_arithmetic_v<T>
 Matrix<T> read_from_file(std::string path) {
 	std::ifstream file;
 	std::string line;
@@ -116,7 +111,7 @@ Matrix<T> read_from_file(std::string path) {
 	file.open(path);
 
     if (!file.is_open()) {
-		throw std::runtime_error("Ошибка при открытии файла!");
+		throw std::exception("Ошибка при открытии файла!");
     }
 	
 	size_t rows, columns;
@@ -141,7 +136,7 @@ void save_to_file(Matrix<T> matrix, std::string filename) {
     file.open(filename);
 
   	if (!file.is_open()) {
-    	throw std::runtime_("Ошибка при открытии файла!");
+    	throw std::exception("Ошибка при открытии файла!");
 	}
 
   	file << matrix.rows() << " " << matrix.columns() << "\n";
