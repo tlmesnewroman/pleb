@@ -6,7 +6,6 @@
 #include <string>
 #include <random>
 #include <concepts>
-#include <mpi.h>
 
 template <typename T> requires std::is_arithmetic_v<T>
 class Matrix {
@@ -82,40 +81,9 @@ public:
 		return matr;
 	}
 
-	Matrix mpi_mult(const Matrix<T>& other) const  {
-		int rank, size;
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        MPI_Comm_size(MPI_COMM_WORLD, &size);
-
-        if (_size % size != 0) {
-            throw std::exception("Размер матрицы должен делиться на количество процессов");
-        }
-
-        int rows_per_proc = _size / size;
-        int start_row = rank * rows_per_proc;
-        
-        Matrix<T> res(_size); 
-        Matrix<T> local_res(_size);
-
-        for (int i = start_row; i < start_row + rows_per_proc; ++i) {
-            for (int j = 0; j < _size; ++j) {
-                T sum = 0;
-                for (int k = 0; k < _size; ++k) {
-                    sum += _data[i * _size + k] * other._data[k * _size + j];
-                }
-                local_res(i, j) = sum;
-            }
-        }
-
-        MPI_Datatype mpi_type;
-        if constexpr (std::is_same_v<T, float>) mpi_type = MPI_FLOAT;
-        else if constexpr (std::is_same_v<T, double>) mpi_type = MPI_DOUBLE;
-
-		MPI_Reduce(local_res._data, res._data, _size * _size, mpi_type, MPI_SUM, 0, MPI_COMM_WORLD);
-
-        return res;
-	}
-
+	T* data() { return _data; }
+	
+    const T* data() const { return _data; }
 };
 
 template <typename T> requires std::is_arithmetic_v<T>
